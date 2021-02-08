@@ -909,3 +909,36 @@ export class UnidentifiedSenderMessageContent {
     );
   }
 }
+
+interface SessionStore {
+  storeSession(address: ProtocolAddress, session: SessionRecord): void;
+  loadSession(address: ProtocolAddress): SessionRecord | null;
+}
+
+export const enum Direction {
+  Sending,
+  Receiving,
+}
+
+interface IdentityKeyStore {
+  getIdentityKeyPair(): IdentityKeyPair;
+  getLocalRegistrationId(): number;
+  saveIdentity(address: ProtocolAddress, identity: PublicKey): void;
+  isTrustedIdentity(address: ProtocolAddress, key: PublicKey): boolean;
+  getIdentity(address: ProtocolAddress): PublicKey | null;
+}
+
+interface PreKeyStore {
+  getPreKey(id: number): PreKeyRecord;
+  savePreKey(id: number, record: PreKeyRecord): void;
+}
+
+interface SignedPreKeyStore {
+  getSignedPreKey(id: number): SignedPreKeyRecord;
+  saveSignedPreKey(id: number, record: SignedPreKeyRecord): void;
+}
+
+interface SenderKeyStore {
+  saveSenderKey(name: SenderKeyName, record: SenderKeyRecord): void;
+  getSenderKey(name: SenderKeyName): SenderKeyRecord;
+}
