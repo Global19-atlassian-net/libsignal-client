@@ -924,7 +924,11 @@ interface IdentityKeyStore {
   getIdentityKeyPair(): IdentityKeyPair;
   getLocalRegistrationId(): number;
   saveIdentity(address: ProtocolAddress, identity: PublicKey): void;
-  isTrustedIdentity(address: ProtocolAddress, key: PublicKey): boolean;
+  isTrustedIdentity(
+    address: ProtocolAddress,
+    key: PublicKey,
+    dir: Direction
+  ): boolean;
   getIdentity(address: ProtocolAddress): PublicKey | null;
 }
 
