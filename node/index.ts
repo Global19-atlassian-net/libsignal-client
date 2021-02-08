@@ -599,6 +599,14 @@ export class SenderKeyName {
     this.nativeHandle = nativeHandle;
   }
 
+  static _fromNativeHandle(nativeHandle: SignalClient.SenderKeyName): SenderKeyName {
+    return new SenderKeyName(nativeHandle);
+  }
+
+  _unsafeGetNativeHandle(): SignalClient.SenderKeyName {
+    return this.nativeHandle;
+  }
+
   static new(
     groupId: string,
     senderName: string,
@@ -681,6 +689,14 @@ export class ServerCertificate {
 
 export class SenderKeyRecord {
   private readonly nativeHandle: SignalClient.SenderKeyRecord;
+
+  _unsafeGetNativeHandle(): SignalClient.SenderKeyRecord {
+    return this.nativeHandle;
+  }
+
+  static _fromNativeHandle(nativeHandle: SignalClient.SenderKeyRecord): SenderKeyRecord {
+    return new SenderKeyRecord(nativeHandle);
+  }
 
   private constructor(nativeHandle: SignalClient.SenderKeyRecord) {
     this.nativeHandle = nativeHandle;
@@ -784,6 +800,18 @@ export class SenderKeyDistributionMessage {
 
   private constructor(nativeHandle: SignalClient.SenderKeyDistributionMessage) {
     this.nativeHandle = nativeHandle;
+  }
+
+  static create(
+    name: SenderKeyName,
+    store: SenderKeyStore
+  ): SenderKeyDistributionMessage {
+    return new SenderKeyDistributionMessage(
+      SC.SenderKeyDistributionMessage_Create(
+        name._unsafeGetNativeHandle(),
+        store
+      )
+    );
   }
 
   static new(
@@ -910,7 +938,8 @@ export class UnidentifiedSenderMessageContent {
   }
 }
 
-interface SessionStore {
+/*
+export interface SessionStore {
   storeSession(address: ProtocolAddress, session: SessionRecord): void;
   loadSession(address: ProtocolAddress): SessionRecord | null;
 }
@@ -920,7 +949,7 @@ export const enum Direction {
   Receiving,
 }
 
-interface IdentityKeyStore {
+export interface IdentityKeyStore {
   getIdentityKeyPair(): IdentityKeyPair;
   getLocalRegistrationId(): number;
   saveIdentity(address: ProtocolAddress, identity: PublicKey): void;
@@ -932,17 +961,31 @@ interface IdentityKeyStore {
   getIdentity(address: ProtocolAddress): PublicKey | null;
 }
 
-interface PreKeyStore {
+export interface PreKeyStore {
   getPreKey(id: number): PreKeyRecord;
   savePreKey(id: number, record: PreKeyRecord): void;
+  removePreKey(id: number): void;
 }
 
-interface SignedPreKeyStore {
+export interface SignedPreKeyStore {
   getSignedPreKey(id: number): SignedPreKeyRecord;
   saveSignedPreKey(id: number, record: SignedPreKeyRecord): void;
 }
+*/
 
-interface SenderKeyStore {
-  saveSenderKey(name: SenderKeyName, record: SenderKeyRecord): void;
-  getSenderKey(name: SenderKeyName): SenderKeyRecord;
+export abstract class SenderKeyStore {
+  _saveSenderKey(name: SignalClient.SenderKeyName, record: SignalClient.SenderKeyRecord): void {
+    this.saveSenderKey(
+      SenderKeyName._fromNativeHandle(name),
+      SenderKeyRecord._fromNativeHandle(record)
+    );
+  }
+  _getSenderKey(name: SignalClient.SenderKeyName): SignalClient.SenderKeyRecord {
+    return this.getSenderKey(
+      SenderKeyName._fromNativeHandle(name)
+    )._unsafeGetNativeHandle();
+  }
+
+  abstract saveSenderKey(name: SenderKeyName, record: SenderKeyRecord): void;
+  abstract getSenderKey(name: SenderKeyName): SenderKeyRecord;
 }

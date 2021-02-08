@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use std::convert::{TryFrom, TryInto};
 use std::ops::RangeInclusive;
 
-pub(crate) trait ArgTypeInfo<'storage, 'context: 'storage>: Sized {
+pub trait ArgTypeInfo<'storage, 'context: 'storage>: Sized {
     type ArgType: neon::types::Value;
     type StoredType: 'storage;
     fn borrow(

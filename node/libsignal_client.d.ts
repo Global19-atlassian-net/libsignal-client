@@ -66,6 +66,7 @@ export function SenderCertificate_GetServerCertificate(cert: SenderCertificate):
 export function SenderCertificate_GetSignature(obj: SenderCertificate): Buffer;
 export function SenderCertificate_New(senderUuid: string, senderE164: string | null, senderDeviceId: number, senderKey: PublicKey, expiration: number, signerCert: ServerCertificate, signerKey: PrivateKey): SenderCertificate;
 export function SenderCertificate_Validate(cert: SenderCertificate, key: PublicKey, time: number): boolean;
+export function SenderKeyDistributionMessage_Create(name: SenderKeyName, store: Object): SenderKeyDistributionMessage;
 export function SenderKeyDistributionMessage_Deserialize(buffer: Buffer): SenderKeyDistributionMessage;
 export function SenderKeyDistributionMessage_GetChainKey(obj: SenderKeyDistributionMessage): Buffer;
 export function SenderKeyDistributionMessage_GetId(obj: SenderKeyDistributionMessage): number;

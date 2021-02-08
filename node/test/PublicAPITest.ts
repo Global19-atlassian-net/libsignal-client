@@ -17,6 +17,19 @@ SignalClient.initLogger(
   }
 );
 
+class InMemorySenderKeyStore extends SignalClient.SenderKeyStore {
+  private state = new Map();
+  saveSenderKey(
+    name: SignalClient.SenderKeyName,
+    record: SignalClient.SenderKeyRecord
+  ): void {
+    this.state.set(name, record);
+  }
+  getSenderKey(name: SignalClient.SenderKeyName): SignalClient.SenderKeyRecord {
+    return this.state.get(name);
+  }
+}
+
 describe('SignalClient', () => {
   it('HKDF test vector', () => {
     const hkdf = SignalClient.HKDF.new(3);
@@ -220,6 +233,14 @@ describe('SignalClient', () => {
       skdm.serialize()
     );
     assert.deepEqual(skdm, skdmFromBytes);
+  });
+  it('SenderKeyDistributionMessage Store API', () => {
+    const senderKeyName = SignalClient.SenderKeyName.new('group', 'sender', 1);
+    const senderKeyStore = new InMemorySenderKeyStore();
+    const skdm = SignalClient.SenderKeyDistributionMessage.create(
+      senderKeyName,
+      senderKeyStore
+    );
   });
   it('PublicKeyBundle', () => {
     const registrationId = 5;

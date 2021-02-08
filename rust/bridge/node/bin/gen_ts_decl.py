@@ -85,6 +85,8 @@ def collect_decls(crate_dir, features=''):
     stdout = str(stdout.decode('utf8'))
     stderr = str(stderr.decode('utf8'))
 
+    print(stdout)
+
     had_error = False
     for l in stderr.split('\n'):
         if l == "":
@@ -97,6 +99,7 @@ def collect_decls(crate_dir, features=''):
         had_error = True
 
     if had_error:
+        print("Exiting with error")
         sys.exit(1)
 
     comment_decl = re.compile(r'\s*///\s*ts: (.+)')
