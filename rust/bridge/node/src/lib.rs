@@ -3,16 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 
-use libsignal_protocol::*;
-use neon::prelude::*;
-use libsignal_bridge::node;
-use signal_neon_futures::*;
 use async_trait::async_trait;
+use libsignal_bridge::node;
+use libsignal_protocol::*;
 use neon::context::Context;
-use std::sync::Arc;
+use neon::prelude::*;
+use signal_neon_futures::*;
 use std::fmt;
 use std::marker::PhantomData;
 use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
 
 pub mod logging;
 
@@ -39,7 +39,10 @@ fn js_error_to_rust(func: &'static str, err: String) -> SignalProtocolError {
     SignalProtocolError::ApplicationCallbackError(func, Box::new(CallbackError::new(err)))
 }
 
-pub fn boxed_object<'a, T: 'static + Send>(cx: &mut TaskContext<'a>, value: T) -> JsResult<'a, JsValue> {
+pub fn boxed_object<'a, T: 'static + Send>(
+    cx: &mut TaskContext<'a>,
+    value: T,
+) -> JsResult<'a, JsValue> {
     Ok(cx.boxed(node::DefaultFinalize(value)).upcast())
 }
 
@@ -58,12 +61,15 @@ impl<'a> NodeSenderKeyStore<'a> {
         }
     }
 
-    async fn do_get_sender_key(&self, name: SenderKeyName) -> Result<Option<SenderKeyRecord>, String> {
+    async fn do_get_sender_key(
+        &self,
+        name: SenderKeyName,
+    ) -> Result<Option<SenderKeyRecord>, String> {
         eprintln!("here...");
         let store_object_shared = self.store_object.clone();
         JsFuture::get_promise(&self.js_queue, move |cx| {
             let store_object = store_object_shared.to_inner(cx);
-            let name : Handle::<JsValue> = boxed_object(cx, name.clone())?; // XXX clone
+            let name: Handle<JsValue> = boxed_object(cx, name.clone())?; // XXX clone
             eprintln!("now here...");
             let result = call_method(cx, store_object, "_getSenderKey", std::iter::once(name))?;
             eprintln!("result = {:?}", result.to_string(cx)?.value(cx));
@@ -72,54 +78,73 @@ impl<'a> NodeSenderKeyStore<'a> {
             eprintln!("did something...");
             Ok(result)
         })
-            .then(|cx, result| {
+        .then(|cx, result| {
+            eprintln!("got a result...");
+            match result {
+                Ok(value) => {
+                    match value.downcast::<JsObject, _>(cx) {
+                        Ok(obj) => {
+                            eprintln!(
+                                "obj {:?}",
+                                obj.to_string(cx).map_err(|e| e.to_string())?.value(cx)
+                            );
+                            let handle =
+                                call_method(cx, obj, "_unsafeGetNativeHandle", std::iter::empty())
+                                    .map_err(|e| e.to_string())?
+                                    .downcast_or_throw(cx);
 
-                  eprintln!("got a result...");
-                  match result {
+                            let handle: Handle<JsObject> = handle.map_err(|e| e.to_string())?;
 
-            Ok(value) => {
-                match value.downcast::<JsObject, _>(cx) {
-                    Ok(obj) => {
-                        eprintln!("obj {:?}", obj.to_string(cx).map_err(|e| e.to_string())?.value(cx));
-                        let handle = call_method(cx, obj, "_unsafeGetNativeHandle", std::iter::empty()).map_err(|e| e.to_string())?.downcast_or_throw(cx);
-
-                        let handle : Handle::<JsObject> = handle.map_err(|e| e.to_string())?;
-
-                        eprintln!("handle {:?}", (*handle).to_string(cx).map_err(|e| e.to_string())?.value(cx));
-                        Ok(None) // fixme!
-                    }
-                    Err(_) => {
-                        eprintln!("not an object?");
-                        if value.is_a::<JsNull, _>(cx) {
-                            eprintln!("you returned null");
-                            Ok(None)
-                        } else {
-                            eprintln!("not an object");
-                            Err("result must be an object".into())
+                            eprintln!(
+                                "handle {:?}",
+                                (*handle)
+                                    .to_string(cx)
+                                    .map_err(|e| e.to_string())?
+                                    .value(cx)
+                            );
+                            Ok(None) // fixme!
+                        }
+                        Err(_) => {
+                            eprintln!("not an object?");
+                            if value.is_a::<JsNull, _>(cx) {
+                                eprintln!("you returned null");
+                                Ok(None)
+                            } else {
+                                eprintln!("not an object");
+                                Err("result must be an object".into())
+                            }
                         }
                     }
                 }
-            },
-                      Err(error) => {
-
-                          eprintln!("downcast failed :/");
-                          Err(error
-                .to_string(cx)
-                .expect("can convert to string")
-                .value(cx))
-                      }
-                  }})
+                Err(error) => {
+                    eprintln!("downcast failed :/");
+                    Err(error
+                        .to_string(cx)
+                        .expect("can convert to string")
+                        .value(cx))
+                }
+            }
+        })
         .await
     }
 
-    async fn do_save_sender_key(&self, name: SenderKeyName, record: SenderKeyRecord) -> Result<(), String> {
+    async fn do_save_sender_key(
+        &self,
+        name: SenderKeyName,
+        record: SenderKeyRecord,
+    ) -> Result<(), String> {
         let store_object_shared = self.store_object.clone();
         JsFuture::get_promise(&self.js_queue, move |cx| {
             let store_object = store_object_shared.to_inner(cx);
-            let name : Handle::<JsValue> = boxed_object(cx, name)?;
-            let record : Handle::<JsValue> = boxed_object(cx, record)?;
-            let result = call_method(cx, store_object, "_saveSenderKey", std::iter::once(name).chain(std::iter::once(record)))?
-                .downcast_or_throw(cx)?;
+            let name: Handle<JsValue> = boxed_object(cx, name)?;
+            let record: Handle<JsValue> = boxed_object(cx, record)?;
+            let result = call_method(
+                cx,
+                store_object,
+                "_saveSenderKey",
+                std::iter::once(name).chain(std::iter::once(record)),
+            )?
+            .downcast_or_throw(cx)?;
             store_object_shared.finalize(cx);
             Ok(result)
         })
@@ -134,7 +159,7 @@ impl<'a> NodeSenderKeyStore<'a> {
                 .value(cx)),
         })
         .await
-        }
+    }
 }
 
 impl<'a> Finalize for NodeSenderKeyStore<'a> {
@@ -152,7 +177,9 @@ impl<'a> SenderKeyStore for NodeSenderKeyStore<'a> {
     ) -> Result<Option<SenderKeyRecord>, SignalProtocolError> {
         eprintln!("load_sender_key({:?})", sender_key_name);
         // XXX clone()
-        self.do_get_sender_key(sender_key_name.clone()).await.map_err(|s| js_error_to_rust("getSenderKey", s))
+        self.do_get_sender_key(sender_key_name.clone())
+            .await
+            .map_err(|s| js_error_to_rust("getSenderKey", s))
     }
 
     async fn store_sender_key(
@@ -163,14 +190,15 @@ impl<'a> SenderKeyStore for NodeSenderKeyStore<'a> {
     ) -> Result<(), SignalProtocolError> {
         eprintln!("store_sender_key({:?})", sender_key_name);
         // XXX clone()
-        self.do_save_sender_key(sender_key_name.clone(), record.clone()).await.map_err(|s| js_error_to_rust("saveSenderKey", s))
+        self.do_save_sender_key(sender_key_name.clone(), record.clone())
+            .await
+            .map_err(|s| js_error_to_rust("saveSenderKey", s))
     }
 }
 
 #[allow(non_snake_case)]
 #[doc = "ts: export function SenderKeyDistributionMessage_Create(name: SenderKeyName, store: Object): Promise<SenderKeyDistributionMessage>"]
 pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<JsObject> {
-
     // XXX There must be an easier way than this:
     let name_arg = cx.argument::<<&SenderKeyName as node::ArgTypeInfo>::ArgType>(0)?;
     let mut name_borrow = <&SenderKeyName as node::ArgTypeInfo>::borrow(&mut cx, name_arg)?;
@@ -181,9 +209,10 @@ pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<
     let name = name.clone(); // XXX clone
 
     promise(&mut cx, async move {
-
         let mut rng = rand::rngs::OsRng;
-        let future = AssertUnwindSafe(create_sender_key_distribution_message(&name, &mut store, &mut rng, None));
+        let future = AssertUnwindSafe(create_sender_key_distribution_message(
+            &name, &mut store, &mut rng, None,
+        ));
         let result = future.await;
         settle_promise(move |cx| {
             store.finalize(cx);
@@ -191,7 +220,7 @@ pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<
                 Ok(obj) => Ok(cx.boxed(node::DefaultFinalize(obj))),
                 Err(e) => {
                     let s = e.to_string();
-                    cx.throw_error::<String, neon::prelude::Handle::<JsBox<_>>>(s)
+                    cx.throw_error::<String, neon::prelude::Handle<JsBox<_>>>(s)
                 }
             }
         })
@@ -216,9 +245,11 @@ pub fn SenderKeyDistributionMessage_Process(mut cx: FunctionContext) -> JsResult
     //let skdm_arg = cx.argument::<<&SenderKeyDistributionMessage as node::ArgTypeInfo>::ArgType>(1)?;
     eprintln!("got arg");
     eprintln!("got arg");
-    let mut skdm_borrow = <&SenderKeyDistributionMessage as node::ArgTypeInfo>::borrow(&mut cx, skdm_arg)?;
+    let mut skdm_borrow =
+        <&SenderKeyDistributionMessage as node::ArgTypeInfo>::borrow(&mut cx, skdm_arg)?;
     eprintln!("got borrow");
-    let skdm = <&SenderKeyDistributionMessage as node::ArgTypeInfo>::load_from(&mut cx, &mut skdm_borrow)?;
+    let skdm =
+        <&SenderKeyDistributionMessage as node::ArgTypeInfo>::load_from(&mut cx, &mut skdm_borrow)?;
     eprintln!("got load_from");
     let skdm = skdm.clone(); // XXX clone
     eprintln!("got skdm");
@@ -227,7 +258,9 @@ pub fn SenderKeyDistributionMessage_Process(mut cx: FunctionContext) -> JsResult
     let mut store = NodeSenderKeyStore::new(&mut cx, store_arg);
 
     promise(&mut cx, async move {
-        let future = AssertUnwindSafe(process_sender_key_distribution_message(&name, &skdm, &mut store, None));
+        let future = AssertUnwindSafe(process_sender_key_distribution_message(
+            &name, &skdm, &mut store, None,
+        ));
         let result = future.await;
         settle_promise(move |cx| {
             store.finalize(cx);
@@ -235,7 +268,7 @@ pub fn SenderKeyDistributionMessage_Process(mut cx: FunctionContext) -> JsResult
                 Ok(obj) => Ok(cx.boxed(node::DefaultFinalize(obj))),
                 Err(e) => {
                     let s = e.to_string();
-                    cx.throw_error::<String, neon::prelude::Handle::<JsBox<_>>>(s)
+                    cx.throw_error::<String, neon::prelude::Handle<JsBox<_>>>(s)
                 }
             }
         })
@@ -246,7 +279,13 @@ pub fn SenderKeyDistributionMessage_Process(mut cx: FunctionContext) -> JsResult
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
     libsignal_bridge::node::register(&mut cx)?;
     cx.export_function("initLogger", logging::init_logger)?;
-    cx.export_function("SenderKeyDistributionMessage_Create", SenderKeyDistributionMessage_Create)?;
-    cx.export_function("SenderKeyDistributionMessage_Process", SenderKeyDistributionMessage_Process)?;
+    cx.export_function(
+        "SenderKeyDistributionMessage_Create",
+        SenderKeyDistributionMessage_Create,
+    )?;
+    cx.export_function(
+        "SenderKeyDistributionMessage_Process",
+        SenderKeyDistributionMessage_Process,
+    )?;
     Ok(())
 }
