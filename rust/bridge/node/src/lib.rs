@@ -174,8 +174,11 @@ pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<
         settle_promise(move |cx| {
             store.finalize(cx);
             match result {
-                Ok(obj) => Ok(cx.boxed(node::DefaultFinalize(obj)).upcast()),
-                Err(e) => cx.throw_error(e.to_string()),
+                Ok(obj) => Ok(cx.boxed(node::DefaultFinalize(obj))),
+                Err(e) => {
+                    let s = e.to_string();
+                    cx.throw_error::<String, neon::prelude::Handle::<JsBox<_>>>(s)
+                }
             }
         })
     })
