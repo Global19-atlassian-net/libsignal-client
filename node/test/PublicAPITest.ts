@@ -23,10 +23,24 @@ class InMemorySenderKeyStore extends SignalClient.SenderKeyStore {
     name: SignalClient.SenderKeyName,
     record: SignalClient.SenderKeyRecord
   ): void {
-    this.state.set(name, record);
+    const key = name.groupId() + "::" + name.senderName() + "::" + name.senderDeviceId()
+    console.log('saveSenderKey', key, record);
+    this.state.set(key, record);
+    console.log('state keys', Array.from(this.state.keys()));
   }
-  getSenderKey(name: SignalClient.SenderKeyName): SignalClient.SenderKeyRecord {
-    return this.state.get(name);
+  getSenderKey(
+    name: SignalClient.SenderKeyName
+  ): SignalClient.SenderKeyRecord | null {
+    const key = name.groupId() + "::" + name.senderName() + "::" + name.senderDeviceId()
+    console.log('getSenderKey', key);
+    console.log('state keys', Array.from(this.state.keys()));
+    if (this.state.has(key)) {
+    console.log('returning value from store');
+      return this.state.get(key);
+    } else {
+    console.log('returning null from store');
+      return null;
+    }
   }
 }
 
@@ -234,13 +248,18 @@ describe('SignalClient', () => {
     );
     assert.deepEqual(skdm, skdmFromBytes);
   });
-  it('SenderKeyDistributionMessage Store API', () => {
+  it('SenderKeyDistributionMessage Store API', async () => {
     const senderKeyName = SignalClient.SenderKeyName.new('group', 'sender', 1);
-    const senderKeyStore = new InMemorySenderKeyStore();
-    const skdm = SignalClient.SenderKeyDistributionMessage.create(
+    const aliceSenderKeyStore = new InMemorySenderKeyStore();
+    console.log('creating');
+    const skdm = await SignalClient.SenderKeyDistributionMessage.create(
       senderKeyName,
-      senderKeyStore
+      aliceSenderKeyStore
     );
+
+    const bobSenderKeyStore = new InMemorySenderKeyStore();
+    console.log("not going to process");
+    await SignalClient.SenderKeyDistributionMessage.process(senderKeyName, skdm, bobSenderKeyStore);
   });
   it('PublicKeyBundle', () => {
     const registrationId = 5;

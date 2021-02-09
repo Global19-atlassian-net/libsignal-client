@@ -66,12 +66,13 @@ export function SenderCertificate_GetServerCertificate(cert: SenderCertificate):
 export function SenderCertificate_GetSignature(obj: SenderCertificate): Buffer;
 export function SenderCertificate_New(senderUuid: string, senderE164: string | null, senderDeviceId: number, senderKey: PublicKey, expiration: number, signerCert: ServerCertificate, signerKey: PrivateKey): SenderCertificate;
 export function SenderCertificate_Validate(cert: SenderCertificate, key: PublicKey, time: number): boolean;
-export function SenderKeyDistributionMessage_Create(name: SenderKeyName, store: Object): SenderKeyDistributionMessage;
+export function SenderKeyDistributionMessage_Create(name: SenderKeyName, store: Object): Promise<SenderKeyDistributionMessage>;
 export function SenderKeyDistributionMessage_Deserialize(buffer: Buffer): SenderKeyDistributionMessage;
 export function SenderKeyDistributionMessage_GetChainKey(obj: SenderKeyDistributionMessage): Buffer;
 export function SenderKeyDistributionMessage_GetId(obj: SenderKeyDistributionMessage): number;
 export function SenderKeyDistributionMessage_GetIteration(obj: SenderKeyDistributionMessage): number;
 export function SenderKeyDistributionMessage_New(keyId: number, iteration: number, chainkey: Buffer, pk: PublicKey): SenderKeyDistributionMessage;
+export function SenderKeyDistributionMessage_Process(name: SenderKeyName, msg: SenderKeyDistributionMessage, store: Object): Promise<void>;
 export function SenderKeyDistributionMessage_Serialize(obj: SenderKeyDistributionMessage): Buffer;
 export function SenderKeyMessage_Deserialize(buffer: Buffer): SenderKeyMessage;
 export function SenderKeyMessage_GetCipherText(obj: SenderKeyMessage): Buffer;
