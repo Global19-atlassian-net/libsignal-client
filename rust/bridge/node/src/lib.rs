@@ -3,15 +3,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 
-use libsignal_protocol::{SenderKeyRecord, SenderKeyName, SenderKeyStore, SenderKeyDistributionMessage};
-use libsignal_protocol::{PublicKey, SignalProtocolError, Context as SignalContext};
+use libsignal_protocol::{SenderKeyRecord, SenderKeyName, SenderKeyStore, create_sender_key_distribution_message};
+use libsignal_protocol::{SignalProtocolError, Context as SignalContext};
 use neon::prelude::*;
 use libsignal_bridge::node;
-//use signal_neon_futures::*;
+use signal_neon_futures::*;
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::fmt;
 use std::marker::PhantomData;
+use std::panic::AssertUnwindSafe;
 
 pub mod logging;
 
@@ -38,6 +39,10 @@ fn js_error_to_rust(func: &'static str, err: String) -> SignalProtocolError {
     SignalProtocolError::ApplicationCallbackError(func, Box::new(CallbackError::new(err)))
 }
 
+pub fn boxed_object<'a, T: 'static + Send>(cx: &mut TaskContext<'a>, value: T) -> JsResult<'a, JsValue> {
+    Ok(cx.boxed(node::DefaultFinalize(value)).upcast())
+}
+
 struct NodeSenderKeyStore<'a> {
     js_queue: EventQueue,
     store_object: Arc<Root<JsObject>>,
@@ -54,12 +59,12 @@ impl<'a> NodeSenderKeyStore<'a> {
     }
 
     async fn do_get_sender_key(&self, name: &SenderKeyName) -> Result<Option<SenderKeyRecord>, String> {
-
         /*
         let store_object_shared = self.store_object.clone();
         JsFuture::get_promise(&self.js_queue, move |cx| {
             let store_object = store_object_shared.to_inner(cx);
-            let result = call_method(cx, store_object, "_getSenderKey", &[name])?
+            let name = boxed_object(&mut cx, name.clone())?;
+            let result = call_method(cx, store_object_shared, "_getSenderKey", &[name])?
                 .downcast_or_throw(cx)?;
             store_object_shared.finalize(cx);
             Ok(result)
@@ -80,7 +85,6 @@ impl<'a> NodeSenderKeyStore<'a> {
         })
         .await
          */
-
         Ok(None)
     }
 
@@ -140,17 +144,19 @@ impl<'a> SenderKeyStore for NodeSenderKeyStore<'a> {
 
 #[allow(non_snake_case)]
 #[doc = "ts: export function SenderKeyDistributionMessage_Create(name: SenderKeyName, store: Object): SenderKeyDistributionMessage"]
-pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<JsValue> {
+pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<JsObject> {
 
     // XXX There must be an easier way than this:
     let name_arg = cx.argument::<<&SenderKeyName as node::ArgTypeInfo>::ArgType>(0)?;
     let mut name_borrow = <&SenderKeyName as node::ArgTypeInfo>::borrow(&mut cx, name_arg)?;
     let name = <&SenderKeyName as node::ArgTypeInfo>::load_from(&mut cx, &mut name_borrow)?;
 
-    let store_arg = cx.argument(1)?;
-    let store = NodeSenderKeyStore::new(&mut cx, store_arg);
-
     eprintln!("SenderKeyDistributionMessage_Create {:?}", name);
+
+    let store_arg = cx.argument(1)?;
+    let mut store = NodeSenderKeyStore::new(&mut cx, store_arg);
+
+    /*
     fn create_sender_key_distribution_message() -> Result<SenderKeyDistributionMessage, SignalProtocolError> {
         let chain_key = vec![32; 32];
         let pk_buf = vec![0x05; 33];
@@ -159,6 +165,20 @@ pub fn SenderKeyDistributionMessage_Create(mut cx: FunctionContext) -> JsResult<
     };
 
     node::return_boxed_object(&mut cx, create_sender_key_distribution_message())
+     */
+
+    promise(&mut cx, async move {
+        let mut rng = rand::rngs::OsRng;
+        let future = AssertUnwindSafe(create_sender_key_distribution_message(name, &mut store, &mut rng, None));
+        let result = future.await;
+        settle_promise(move |cx| {
+            store.finalize(cx);
+            match result {
+                Ok(obj) => Ok(cx.boxed(node::DefaultFinalize(obj)).upcast()),
+                Err(e) => cx.throw_error(e.to_string()),
+            }
+        })
+    })
 }
 
 #[neon::main]

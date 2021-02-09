@@ -27,7 +27,7 @@ pub fn register(cx: &mut ModuleContext) -> NeonResult<()> {
     Ok(())
 }
 
-pub struct DefaultFinalize<T>(T);
+pub struct DefaultFinalize<T>(pub T);
 
 impl<T> Finalize for DefaultFinalize<T> {}
 
