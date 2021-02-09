@@ -815,17 +815,17 @@ export class SenderKeyDistributionMessage {
     name: SenderKeyName,
     store: SenderKeyStore
   ): Promise<SenderKeyDistributionMessage> {
-     const handle = await SC.SenderKeyDistributionMessage_Create(
-        name._unsafeGetNativeHandle(),
-        store
-      );
+    const handle = await SC.SenderKeyDistributionMessage_Create(
+      name._unsafeGetNativeHandle(),
+      store
+    );
     return new SenderKeyDistributionMessage(handle);
   }
 
   static async process(
     name: SenderKeyName,
     message: SenderKeyDistributionMessage,
-    store: SenderKeyStore,
+    store: SenderKeyStore
   ): Promise<void> {
     await SC.SenderKeyDistributionMessage_Process(
       name._unsafeGetNativeHandle(),
